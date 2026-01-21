@@ -10,6 +10,8 @@ client = OpenAI(
     base_url=os.getenv("OPENAI_BASE_URL"),
 )
 
+# implement user based query or get the query from user
+
 response = client.chat.completions.create(
     model= os.getenv("OPENAI_MODEL"),
     messages=[

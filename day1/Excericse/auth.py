@@ -5,8 +5,6 @@ import json
 from util import simple_hash
 from db import get_users, initialize_database, save_users
 
-
-
 def login_user():
     users = get_users()
     mail_input = input("Enter your Mail Id : ")
@@ -14,13 +12,15 @@ def login_user():
         print("Mail Id does not exist, please sign up.")
         signup_user()
         return
-    
-    pwd_input = input("Enter your Password: ")
-    if users[mail_input]["password"] == simple_hash(pwd_input):
+    for i in range (3):       
+        pwd_input = input("Enter your Password: ")
+        if users[mail_input]["password"] == simple_hash(pwd_input):
 
-        print("Login successful!")
-    else:
-        print("Invalid Password")
+            print("Login successful!")
+            return 
+        else:
+            print("Invalid Password, try again")
+    print("Too many attempts with incorrect password")
 
 
 

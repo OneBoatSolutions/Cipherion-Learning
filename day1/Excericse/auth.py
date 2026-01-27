@@ -40,6 +40,13 @@ def save_users():
     global _USERS
     with open(DB_PATH, "w") as f:
         json.dump(_USERS, f, indent=4)
+#-------------------HASH--------------
+def simple_hash(password):
+    hash_value = 0
+    prime = 31
+    for char in password:
+        hash_value = (hash_value * prime + ord(char)) % 100000
+    return str(hash_value)
 
 
 
@@ -53,7 +60,8 @@ def login_user():
         return
     
     pwd_input = input("Enter your Password: ")
-    if users[mail_input]["password"] == pwd_input:
+    if users[mail_input]["password"] == simple_hash(pwd_input):
+
         print("Login successful!")
     else:
         print("Invalid Password")
@@ -75,7 +83,7 @@ def signup_user():
 
     users[mail_input] = {
         "username": username_input,
-        "password": pwd_input
+        "password": simple_hash(pwd_input)
     }
   
     save_users()

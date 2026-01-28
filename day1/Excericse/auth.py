@@ -17,17 +17,11 @@ def login_user():
         if users[mail_input]["password"] == simple_hash(pwd_input):
 
             print("Login successful!")
-            return 
+            return True, mail_input
         else:
             print("Invalid Password, try again")
-    print("Too many attempts with incorrect password")
-#---------------AFTER INCORRECT ATTEMPTS DIRECT TO RESET PASSWORD----------
-    choice = input("Do you want to reset your password? (yes/no): ").strip().lower()
-
-    if choice == "yes":
-        reset_password(mail_input)
-    else:
-        print("Login terminated")
+            return False
+    print("Too many attempts with incorrect password")           
 
 
 def signup_user():
@@ -50,12 +44,9 @@ def signup_user():
   
     save_users()
     print("Signup successful!")
-from util import simple_hash
-from db import get_users, save_users
-
-
-#-------------------------RESET PASSWORD OPTION--------------
-def reset_password(email):
+    return True, mail_input
+  
+ def reset_password(email):
     users = get_users()
 
     print("Password Reset")
@@ -89,6 +80,11 @@ def reset_password(email):
 #REDIRECT TO LOGIN PAGE
 
     login_user()
+
+
+
+
+
 
 
 

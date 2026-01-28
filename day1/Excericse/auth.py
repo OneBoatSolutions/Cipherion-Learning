@@ -2,54 +2,8 @@
 import os
 import json
 
-# ---------- CONFIG ----------
-DB_FOLDER = "database"
-
-DB_FILE = "users.json"
-DB_PATH = os.path.join(DB_FOLDER, DB_FILE)
-_USERS = None  # private global state
-
-
-# ---------- CREATE FOLDER + FILE ----------
-def initialize_database():
-    if not os.path.exists(DB_FOLDER):
-        os.makedirs(DB_FOLDER)
-
-    if not os.path.exists(DB_PATH):
-        with open(DB_PATH, "w") as f:
-            json.dump({}, f)
-#-------------Get users------------
-def get_users():
-    """Load users once and return the same instance everywhere"""
-    global _USERS
-
-    if _USERS is None:
-        with open(DB_PATH, "r") as f:
-            _USERS = json.load(f)
-
-    return _USERS
-
-# ---------- LOAD USERS ----------
-def load_users():
-    with open(DB_PATH, "r") as f:
-        return json.load(f)
-
-
-# ---------- SAVE USERS ----------
-def save_users():
-    global _USERS
-    with open(DB_PATH, "w") as f:
-        json.dump(_USERS, f, indent=4)
-#-------------------HASH--------------
-def simple_hash(password):
-    hash_value = 0
-    prime = 31
-    for char in password:
-        hash_value = (hash_value * prime + ord(char)) % 100000
-    return str(hash_value)
-
-
-
+from util import simple_hash
+from db import get_users, initialize_database, save_users
 
 def login_user():
     users = get_users()
@@ -58,14 +12,22 @@ def login_user():
         print("Mail Id does not exist, please sign up.")
         signup_user()
         return
-    
-    pwd_input = input("Enter your Password: ")
-    if users[mail_input]["password"] == simple_hash(pwd_input):
+    for i in range (3):       
+        pwd_input = input("Enter your Password: ")
+        if users[mail_input]["password"] == simple_hash(pwd_input):
 
-        print("Login successful!")
+            print("Login successful!")
+            return 
+        else:
+            print("Invalid Password, try again")
+    print("Too many attempts with incorrect password")
+#---------------AFTER INCORRECT ATTEMPTS DIRECT TO RESET PASSWORD----------
+    choice = input("Do you want to reset your password? (yes/no): ").strip().lower()
+
+    if choice == "yes":
+        reset_password(mail_input)
     else:
-        print("Invalid Password")
-
+        print("Login terminated")
 
 
 def signup_user():
@@ -75,7 +37,7 @@ def signup_user():
     mail_input = input("Enter your Mail ID: ")
     if mail_input in users:
         print("Mail Id already exists please login")
-        login_user(users)
+        login_user()
         return 
 
     username_input = input("Enter your Username : ")
@@ -88,26 +50,45 @@ def signup_user():
   
     save_users()
     print("Signup successful!")
+from util import simple_hash
+from db import get_users, save_users
 
 
+#-------------------------RESET PASSWORD OPTION--------------
+def reset_password(email):
+    users = get_users()
 
-def main():
-    initialize_database()
-    print("Welcome to Tessent")
-    print("1. Press 1 for login") 
-    print("2. Press 2 for signup")
-    
+    print("Password Reset")
+
     while True:
+        new_pwd = input("Enter new password: ")
+        confirm_pwd = input("Confirm new password: ")
 
-        user_input = int(input("Enter your choice:"))
-        if user_input == 1:
-            login_user()
-            break
-        elif user_input == 2:
-            signup_user()
-            break
+        if new_pwd != confirm_pwd:
+            print("Passwords do not match. Try again.")
         else:
-            print("Wrong choice, renter your choice")
+            break
+
+    # preserve username
+    username = users[email]["username"]
+
+    # delete old data
+    del users[email]
+
+    # recreate user entry
+    users[email] = {
+        "username": username,
+        "password": simple_hash(new_pwd)
+    }
+
+    save_users()
+    print("Password reset successful. Please login again.")
+    print("Login successful!")
+    print("Redirecting to login page\n")
+
+#REDIRECT TO LOGIN PAGE
+    login_user()
 
 
-main()
+
+

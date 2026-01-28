@@ -17,11 +17,11 @@ def login_user():
         if users[mail_input]["password"] == simple_hash(pwd_input):
 
             print("Login successful!")
-            return 
+            return True, mail_input
         else:
             print("Invalid Password, try again")
-    print("Too many attempts with incorrect password")
-
+            return False
+    print("Too many attempts with incorrect password")           
 
 
 def signup_user():
@@ -44,6 +44,7 @@ def signup_user():
   
     save_users()
     print("Signup successful!")
+    return True, mail_input
 
 
 

@@ -87,6 +87,7 @@ def reset_password(email):
     print("Redirecting to login page\n")
 
 #REDIRECT TO LOGIN PAGE
+
     login_user()
 
 

@@ -15,7 +15,7 @@ def main():
             break
         elif user_input == 2:
             signup_user()
-            break
+            return
         else:
             print("Wrong choice, renter your choice")
 

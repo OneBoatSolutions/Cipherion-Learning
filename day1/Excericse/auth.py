@@ -31,7 +31,7 @@ def signup_user():
     mail_input = input("Enter your Mail ID: ")
     if mail_input in users:
         print("Mail Id already exists please login")
-        login_user(users)
+        login_user()
         return 
 
     username_input = input("Enter your Username : ")
@@ -45,6 +45,46 @@ def signup_user():
     save_users()
     print("Signup successful!")
     return True, mail_input
+  
+ def reset_password(email):
+    users = get_users()
+
+    print("Password Reset")
+
+    while True:
+        new_pwd = input("Enter new password: ")
+        confirm_pwd = input("Confirm new password: ")
+
+        if new_pwd != confirm_pwd:
+            print("Passwords do not match. Try again.")
+        else:
+            break
+
+    # preserve username
+    username = users[email]["username"]
+
+    # delete old data
+    del users[email]
+
+    # recreate user entry
+    users[email] = {
+        "username": username,
+        "password": simple_hash(new_pwd)
+    }
+
+    save_users()
+    print("Password reset successful. Please login again.")
+    print("Login successful!")
+    print("Redirecting to login page\n")
+
+#REDIRECT TO LOGIN PAGE
+
+    login_user()
+
+
+
+
+
 
 
 

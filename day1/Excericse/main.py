@@ -19,7 +19,7 @@ def main():
             login_var, mail_input=signup_user()
             if login_var ==True:
                 start_chat(mail_input)
-            break
+            return
         else:
             print("Wrong choice, renter your choice")
 

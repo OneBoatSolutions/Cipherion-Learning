@@ -1,6 +1,7 @@
 #objectives
 import os
 import json
+from chatbot import start_chat
 
 from util import simple_hash
 from db import get_users, initialize_database, save_users
@@ -20,8 +21,16 @@ def login_user():
             return True, mail_input
         else:
             print("Invalid Password, try again")
-            return False
-    print("Too many attempts with incorrect password")           
+    print("Too many attempts with incorrect password")
+#---------------AFTER INCORRECT ATTEMPTS DIRECT TO RESET PASSWORD----------
+    choice = input("Do you want to reset your password? (yes/no): ").strip().lower()
+
+    if choice == "yes":
+        reset_password(mail_input)
+    else:
+        print("Login terminated")
+
+    return False, None     
 
 
 def signup_user():
@@ -31,7 +40,7 @@ def signup_user():
     mail_input = input("Enter your Mail ID: ")
     if mail_input in users:
         print("Mail Id already exists please login")
-        login_user(users)
+        login_user()
         return 
 
     username_input = input("Enter your Username : ")
@@ -45,6 +54,49 @@ def signup_user():
     save_users()
     print("Signup successful!")
     return True, mail_input
+  
+def reset_password(email):
+    users = get_users()
+
+    print("Password Reset")
+
+    while True:
+        new_pwd = input("Enter new password: ")
+        confirm_pwd = input("Confirm new password: ")
+
+        if new_pwd != confirm_pwd:
+            print("Passwords do not match. Try again.")
+        else:
+            break
+
+    # preserve username
+    username = users[email]["username"]
+
+    # delete old data
+    del users[email]
+
+    # recreate user entry
+    users[email] = {
+        "username": username,
+        "password": simple_hash(new_pwd)
+    }
+
+    save_users()
+    print("Password reset successful. Please login again.")
+    print("Login successful!")
+    print("Redirecting to login page\n")
+
+#REDIRECT TO LOGIN PAGE
+
+    login_var, mail_input=login_user()
+    if login_var ==True:
+        start_chat(mail_input)
+
+
+
+
+
+
 
 
 

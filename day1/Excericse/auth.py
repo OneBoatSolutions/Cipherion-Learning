@@ -1,6 +1,7 @@
 #objectives
 import os
 import json
+from chatbot import start_chat
 
 from util import simple_hash
 from db import get_users, initialize_database, save_users
@@ -20,8 +21,16 @@ def login_user():
             return True, mail_input
         else:
             print("Invalid Password, try again")
-            return False
-    print("Too many attempts with incorrect password")           
+    print("Too many attempts with incorrect password")
+#---------------AFTER INCORRECT ATTEMPTS DIRECT TO RESET PASSWORD----------
+    choice = input("Do you want to reset your password? (yes/no): ").strip().lower()
+
+    if choice == "yes":
+        reset_password(mail_input)
+    else:
+        print("Login terminated")
+
+    return False, None     
 
 
 def signup_user():
@@ -46,7 +55,7 @@ def signup_user():
     print("Signup successful!")
     return True, mail_input
   
- def reset_password(email):
+def reset_password(email):
     users = get_users()
 
     print("Password Reset")
@@ -79,7 +88,10 @@ def signup_user():
 
 #REDIRECT TO LOGIN PAGE
 
-    login_user()
+    login_var, mail_input=login_user()
+    if login_var ==True:
+        start_chat(mail_input)
+
 
 
 

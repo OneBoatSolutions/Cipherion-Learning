@@ -11,12 +11,13 @@ client = OpenAI(
 )
 
 # implement user based query or get the query from user
-
+print("Enter input query:")
+user_input = input()
 response = client.chat.completions.create(
     model= os.getenv("OPENAI_MODEL"),
     messages=[
         {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Write a haiku about Python."}
+        {"role": "user", "content": user_input}
     ]
 )
 

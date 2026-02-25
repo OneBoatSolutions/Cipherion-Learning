@@ -39,6 +39,7 @@ class MessageBus:
         - send() a message to a specific receiver
         - receive() all messages addressed to them
         - get_conversation() to see the full history between two agents
+        - export_to_markdown() to dump the full log to a readable .md file
     """
 
     def __init__(self):
@@ -111,6 +112,65 @@ class MessageBus:
     def clear(self):
         """Clear all messages."""
         self._messages.clear()
+
+    def export_to_markdown(self, file_path: str) -> str:
+        """
+        Export the full message history to a readable markdown file.
+
+        Args:
+            file_path: Path to the output .md file.
+
+        Returns:
+            The file path written.
+        """
+        lines = [
+            "# 📬 Message Bus Log",
+            "",
+            f"> Total messages: {len(self._messages)}",
+            "",
+            "---",
+            "",
+        ]
+
+        for i, msg in enumerate(self._messages, 1):
+            # Header with direction arrow
+            lines.append(f"## Message {i}: {msg.sender} → {msg.receiver}")
+            lines.append("")
+            lines.append(f"| Field | Value |")
+            lines.append(f"|-------|-------|")
+            lines.append(f"| **Type** | `{msg.msg_type}` |")
+            lines.append(f"| **Timestamp** | `{msg.timestamp}` |")
+
+            if msg.metadata:
+                meta_str = ", ".join(f"{k}={v}" for k, v in msg.metadata.items())
+                lines.append(f"| **Metadata** | {meta_str} |")
+
+            lines.append("")
+            lines.append("**Content:**")
+            lines.append("")
+
+            content_str = str(msg.content)
+            # If content looks like markdown, keep it as-is; otherwise wrap in code block
+            if content_str.startswith("#") or content_str.startswith("-") or "**" in content_str:
+                lines.append(content_str)
+            else:
+                lines.append("```")
+                lines.append(content_str[:3000])  # Cap very long content
+                if len(content_str) > 3000:
+                    lines.append(f"... (truncated, {len(content_str)} chars total)")
+                lines.append("```")
+
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+
+        # Write to file
+        import os
+        os.makedirs(os.path.dirname(file_path) or ".", exist_ok=True)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+
+        return file_path
 
     def __len__(self):
         return len(self._messages)

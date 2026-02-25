@@ -3,26 +3,29 @@ Tools: Shell Commands
 ======================
 Tool for executing shell commands with safety guards and timeout.
 
-Built from scratch — provides the Coder agent with the ability to
-run commands like 'pip install', 'python script.py', etc.
+Commands automatically run inside the sandbox directory.
+Built from scratch — no external tool libraries.
 """
 
 import subprocess
 import os
+from .sandbox import get_sandbox_root
 
 
-def run_command(command: str, cwd: str = ".") -> dict:
+def run_command(command: str, cwd: str = None) -> dict:
     """
     Execute a shell command and return the output.
+    Runs inside the sandbox directory by default.
 
     Safety measures:
         - Timeout of 30 seconds
         - Captures both stdout and stderr
         - Returns exit code
+        - Blocks dangerous commands
 
     Args:
         command: The shell command to execute.
-        cwd:     Working directory (defaults to current).
+        cwd:     Working directory (defaults to sandbox root).
 
     Returns:
         Dict with 'command', 'stdout', 'stderr', 'exit_code'.
@@ -37,7 +40,16 @@ def run_command(command: str, cwd: str = ".") -> dict:
             }
 
     try:
-        abs_cwd = os.path.abspath(cwd)
+        # Default to sandbox root, fall back to cwd
+        if cwd:
+            abs_cwd = os.path.abspath(cwd)
+        else:
+            sandbox = get_sandbox_root()
+            abs_cwd = sandbox if sandbox else os.path.abspath(".")
+
+        # Ensure the cwd directory exists
+        os.makedirs(abs_cwd, exist_ok=True)
+
         result = subprocess.run(
             command,
             shell=True,
@@ -75,6 +87,7 @@ SHELL_TOOL_SCHEMAS = [
         "name": "run_command",
         "description": (
             "Execute a shell command and return stdout, stderr, and exit code. "
+            "Commands run inside the project directory by default. "
             "Use this to run programs, install packages, or test code. "
             "Has a 30-second timeout."
         ),
@@ -87,7 +100,7 @@ SHELL_TOOL_SCHEMAS = [
                 },
                 "cwd": {
                     "type": "string",
-                    "description": "Working directory for the command. Defaults to current directory.",
+                    "description": "Optional: working directory. Defaults to the project directory.",
                 },
             },
             "required": ["command"],

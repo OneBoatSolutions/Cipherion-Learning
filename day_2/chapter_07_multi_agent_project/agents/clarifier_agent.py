@@ -2,7 +2,7 @@
 Agent: Clarifier
 ==================
 Takes the user's raw problem statement, elaborates it into a
-detailed specification, and incorporates user feedback.
+short, focused specification, and incorporates user feedback.
 
 This is the first agent in the pipeline. Its job is to ensure
 the requirements are clear and complete BEFORE any code is written.
@@ -10,21 +10,16 @@ the requirements are clear and complete BEFORE any code is written.
 
 from framework.base_agent import BaseAgent
 from openai import OpenAI
-import os
+
 
 class ClarifierAgent(BaseAgent):
     """
-    Elaborates vague problem statements into detailed specifications.
+    Elaborates vague problem statements into concise specifications.
 
     The Clarifier:
         1. Analyses the user's raw input
-        2. Identifies ambiguities and missing details
-        3. Produces a structured specification covering:
-           - Purpose & goals
-           - Features & functionality
-           - Technical considerations
-           - User flows
-           - Edge cases & constraints
+        2. Identifies the core features needed
+        3. Produces a brief specification (purpose, features, tech)
     """
 
     def __init__(self, client: OpenAI):
@@ -32,28 +27,30 @@ class ClarifierAgent(BaseAgent):
             client=client,
             name="Clarifier",
             system_prompt=self._build_system_prompt(),
-            model=os.getenv("OPENAI_MODEL"),
-            max_iterations=5,
+            max_iterations=3,
             color="blue",
         )
 
     def _build_system_prompt(self) -> str:
-        return """You are a senior requirements analyst. Your job is to take a raw, 
-possibly vague problem statement and elaborate it into a clear, detailed, 
-structured specification.
+        return """You are a requirements analyst. Take the user's raw idea and produce a SHORT, focused specification.
 
-When analyzing a problem statement, you MUST cover:
+Your output MUST follow this EXACT format and stay UNDER 150 words total:
 
-1. **Purpose & Goals** — What is the software trying to achieve? What problem does it solve?
-2. **Core Features** — List every feature with a brief description
-3. **Technical Stack** — Recommended programming language, frameworks, libraries
-4. **User Flows** — How will users interact with the software? Step by step.
-5. **Data Model** — What data needs to be stored or processed?
-6. **Edge Cases & Constraints** — What could go wrong? What are the limits?
-7. **Out of Scope** — What is explicitly NOT included in this version?
+## Purpose
+One sentence describing what the app does.
 
-Format your output as a clean, well-structured markdown document.
-Be thorough but concise. Don't add unnecessary fluff.
-Focus on actionable, implementable requirements.
+## Features
+A numbered list of 3-6 core features. Keep each to one line. No sub-features.
 
-When you have completed your specification, use the task_complete tool to submit it."""
+## Tech Stack
+One line listing the technologies (e.g. "HTML5, CSS3, vanilla JavaScript").
+
+## File Structure
+A simple list of files to create (3-5 files max for simple projects).
+
+RULES:
+- Do NOT add accessibility modules, pub/sub patterns, strategy patterns, or complex architecture.
+- Do NOT add "edge cases", "out of scope", "data models", "user flows", or "constraints" sections.
+- Do NOT over-engineer. A calculator needs 3 files (HTML, CSS, JS), not 8.
+- Keep it SIMPLE. Think MVP — minimum viable product.
+- When done, call task_complete with your specification."""

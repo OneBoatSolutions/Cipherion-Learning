@@ -5,9 +5,11 @@ The coding agent that actually writes code files.
 
 Receives a specific coding task from the Planner and uses
 file tools, shell tools, and search tools to implement it.
+
+All file paths are handled by the tools — the coder just uses
+simple filenames like "index.html" and the sandbox handles the rest.
 """
 
-import os
 from framework.base_agent import BaseAgent
 from tools import ALL_TOOL_SCHEMAS
 from openai import OpenAI
@@ -22,19 +24,18 @@ class CoderAgent(BaseAgent):
         - Shell tools: run commands (install packages, run tests)
         - Search tools: find files, grep for patterns
 
-    It uses these tools to actually create and modify source code files.
+    It uses these tools to create and modify source code files.
+    All file operations are automatically sandboxed.
     """
 
     def __init__(self, client: OpenAI, project_dir: str = "./output"):
         super().__init__(
             client=client,
             name="Coder",
-            system_prompt=self._build_system_prompt(project_dir),
-            model=os.getenv("OPENAI_MODEL"),
-            max_iterations=15,
+            system_prompt=self._build_system_prompt(),
+            max_iterations=10,
             color="magenta",
         )
-        self.project_dir = project_dir
 
         # Register all coding tools from the tools package
         for tool_def in ALL_TOOL_SCHEMAS:
@@ -45,31 +46,33 @@ class CoderAgent(BaseAgent):
                 func=tool_def["func"],
             )
 
-    def _build_system_prompt(self, project_dir: str) -> str:
-        return f"""You are an expert software developer. You write clean, well-documented,
-production-quality code.
+    def _build_system_prompt(self) -> str:
+        return """You are an expert software developer. Write clean, working code.
 
-WORKING DIRECTORY: {project_dir}
-All file paths should be relative to or within this directory.
+All file operations are automatically sandboxed — just use simple filenames.
+For example: write_file("index.html", ...) or write_file("src/app.js", ...).
+Do NOT use absolute paths. The tools handle directory creation automatically.
 
-When given a coding task:
-1. **Understand** the requirements fully
-2. **Plan** the file structure and code architecture
-3. **Implement** by using write_file to create each file
-4. **Verify** by reading back files or running commands if needed
+AVAILABLE TOOLS (use ONLY these exact names):
+- write_file(file_path, content) — Create/overwrite a file. Just provide the filename.
+- read_file(file_path) — Read a previously created file.
+- list_directory(directory_path) — List files. Use '.' for project root.
+- create_directory(directory_path) — Create a subdirectory.
+- run_command(command) — Run a shell command in the project directory.
+- search_files(directory, pattern) — Search for files by name.
+- grep_in_file(file_path, search_term) — Search inside a file.
+- task_complete(result) — Call when ALL files are written. REQUIRED.
 
-CODE QUALITY RULES:
-- Always include docstrings and comments
-- Use meaningful variable and function names
-- Handle errors gracefully
-- Follow language-specific best practices
-- Keep files focused and modular
+EFFICIENCY RULES (you have limited API calls):
+1. Write files DIRECTLY. Do NOT call list_directory or read_file before creating NEW files.
+2. If the task mentions "previously created files", you MAY use read_file to check them.
+3. Create MULTIPLE files in ONE response — batch several write_file calls together.
+4. After writing all files, IMMEDIATELY call task_complete.
+5. NEVER invent tool names. Only use the exact names listed above.
 
-IMPORTANT:
-- Use write_file to create files (it auto-creates parent directories)
-- Use read_file to check existing files before modifying
-- Use list_directory to see what already exists
-- When done implementing, use task_complete with a summary of what you created
+WORKFLOW:
+1. Receive task → write all needed files immediately → call task_complete.
+2. If building on previous files, read them first, then write your files.
+3. That's it. Don't over-think it.
 
-Always write COMPLETE, WORKING code. Never use placeholder comments like "# TODO" 
-or "# add implementation here"."""
+Write COMPLETE, WORKING code. No placeholder comments like "// TODO"."""

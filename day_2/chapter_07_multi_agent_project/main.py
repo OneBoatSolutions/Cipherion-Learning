@@ -7,6 +7,10 @@ builds software through a pipeline of AI agents.
 Pipeline:
     User Input → Clarifier → PRD Agent → Planner → Coder → Output
 
+This file defines the SPECIFIC pipeline using the GENERIC orchestrator.
+The orchestrator itself knows nothing about these agents — it just runs
+phases sequentially.
+
 Usage:
     python main.py "Build a todo app with Flask"
     python main.py                                  # Interactive mode
@@ -26,11 +30,58 @@ from openai import OpenAI
 # Add project root to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from framework.orchestrator import Orchestrator
+from framework.orchestrator import Orchestrator, Phase
 from agents.clarifier_agent import ClarifierAgent
 from agents.prd_agent import PRDAgent
 from agents.planner_agent import PlannerAgent
 from agents.coder_agent import CoderAgent
+
+
+def build_pipeline(orchestrator: Orchestrator):
+    """
+    Define the software development pipeline.
+
+    This is where the specific workflow is configured.
+    Change this function to create different pipelines.
+    """
+
+    # Phase 1: Clarify the user's requirements
+    orchestrator.add_phase(Phase(
+        name="Requirement Clarification",
+        agent_name="clarifier",
+        prompt_template=(
+            "The user wants to build the following:\n\n{user_input}\n\n"
+            "Elaborate this into a concise specification. "
+            "Keep it short: purpose, features, tech stack, file structure."
+        ),
+        report_filename="01_specification.md",
+        needs_approval=True,
+    ))
+
+    # Phase 2: Generate a PRD from the approved spec
+    orchestrator.add_phase(Phase(
+        name="PRD Generation",
+        agent_name="prd_agent",
+        prompt_template=(
+            "Create a concise Product Requirements Document (PRD) based on "
+            "this approved specification:\n\n{previous_output}"
+        ),
+        report_filename="02_prd.md",
+    ))
+
+    # Phase 3: Plan tasks and generate code
+    orchestrator.add_phase(Phase(
+        name="Task Planning & Code Generation",
+        agent_name="planner",
+        prompt_template=(
+            "You have a PRD to implement. Break it down into coding tasks "
+            "and use your tools to assign each task to the coding agent.\n\n"
+            "PRD:\n{previous_output}"
+        ),
+        report_filename="03_task_plan.md",
+        setup_sandbox=True,
+        pass_message_bus=True,
+    ))
 
 
 def main():
@@ -62,27 +113,28 @@ def main():
             print("No input provided. Exiting.")
             sys.exit(0)
 
-    # ── Set up output directory ──
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
-    os.makedirs(output_dir, exist_ok=True)
+    # ── Set up output base directory ──
+    output_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
 
     # ── Create agents ──
     clarifier = ClarifierAgent(client=client)
     prd_agent = PRDAgent(client=client)
-    coder    = CoderAgent(client=client, project_dir=output_dir)
+    coder    = CoderAgent(client=client)
     planner  = PlannerAgent(client=client, coder_agent=coder)
 
-    # ── Create orchestrator and register agents ──
-    orchestrator = Orchestrator(client=client)
+    # ── Create orchestrator, register agents, and define pipeline ──
+    orchestrator = Orchestrator(client=client, output_base=output_base)
     orchestrator.register_agent("clarifier", clarifier)
     orchestrator.register_agent("prd_agent", prd_agent)
     orchestrator.register_agent("planner", planner)
     orchestrator.register_agent("coder", coder)
 
+    # Define the pipeline — this is the only project-specific part
+    build_pipeline(orchestrator)
+
     # ── Run the pipeline ──
     try:
         result = orchestrator.run(user_input)
-        print(f"\n📁 Output files written to: {output_dir}")
     except KeyboardInterrupt:
         print("\n\nInterrupted by user. Exiting.")
         sys.exit(0)

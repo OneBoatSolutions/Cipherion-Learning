@@ -3,27 +3,28 @@ Tools: Search & Grep
 =====================
 Tools for searching files by name and searching content within files.
 
-These give the Coder agent the ability to explore and understand
-an existing codebase before making changes.
+All paths are automatically resolved to the sandbox directory.
 """
 
 import os
 import re
+from .sandbox import resolve_path, get_sandbox_root
 
 
-def search_files(directory: str, pattern: str) -> dict:
+def search_files(directory: str = ".", pattern: str = "") -> dict:
     """
-    Search for files matching a glob-like pattern in a directory.
+    Search for files matching a pattern in a directory.
+    Defaults to the sandbox root.
 
     Args:
-        directory: The directory to search in.
+        directory: The directory to search in (resolved to sandbox).
         pattern:   A substring to match against file names (case-insensitive).
 
     Returns:
         Dict with 'matches' (list of file paths).
     """
     try:
-        abs_dir = os.path.abspath(directory)
+        abs_dir = resolve_path(directory)
         if not os.path.isdir(abs_dir):
             return {"directory": directory, "error": f"Not a directory: {abs_dir}"}
 
@@ -58,14 +59,14 @@ def grep_in_file(file_path: str, search_term: str) -> dict:
     Search for a term within a file and return matching lines.
 
     Args:
-        file_path:   Path to the file to search.
+        file_path:   Path to the file to search (resolved to sandbox).
         search_term: The string or regex to search for.
 
     Returns:
         Dict with 'matches' (list of {line_number, line_content}).
     """
     try:
-        abs_path = os.path.abspath(file_path)
+        abs_path = resolve_path(file_path)
         if not os.path.isfile(abs_path):
             return {"path": file_path, "error": f"File not found: {abs_path}"}
 
@@ -97,11 +98,11 @@ def grep_in_file(file_path: str, search_term: str) -> dict:
 SEARCH_TOOL_SCHEMAS = [
     {
         "name": "search_files",
-        "description": "Search for files by name pattern in a directory (recursive). Returns matching file paths.",
+        "description": "Search for files by name pattern in the project (recursive). Use '.' to search the whole project.",
         "parameters": {
             "type": "object",
             "properties": {
-                "directory": {"type": "string", "description": "Directory to search in."},
+                "directory": {"type": "string", "description": "Directory to search in, or '.' for project root."},
                 "pattern":   {"type": "string", "description": "Filename substring to match (case-insensitive)."},
             },
             "required": ["directory", "pattern"],
@@ -114,7 +115,7 @@ SEARCH_TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "file_path":   {"type": "string", "description": "Path to the file to search in."},
+                "file_path":   {"type": "string", "description": "Filename or relative path to search in."},
                 "search_term": {"type": "string", "description": "Text or regex pattern to search for."},
             },
             "required": ["file_path", "search_term"],

@@ -11,10 +11,12 @@ Features:
     - Built-in 'task_complete' tool for explicit completion
     - Conversation memory within a run
     - Coloured console logging for each agent
+    - API rate limiting (configurable calls per minute)
 """
 
 import json
 import os
+import time
 from openai import OpenAI
 from .tool_registry import ToolRegistry
 
@@ -42,19 +44,24 @@ class BaseAgent:
         "dim":     "\033[2m",
     }
 
+    # ── Class-level rate limiter (shared across ALL agents) ──
+    _api_call_timestamps: list = []
+    _rate_limit: int = 14          # Max calls per window (stay under 15)
+    _rate_window: int = 60         # Window in seconds
+
     def __init__(
         self,
         client: OpenAI,
         name: str = "Agent",
         system_prompt: str = "You are a helpful assistant.",
-        model: str = os.getenv("OPENAI_MODEL"),
+        model: str = None,
         max_iterations: int = 15,
         color: str = "cyan",
     ):
         self.client = client
         self.name = name
         self.system_prompt = system_prompt
-        self.model = model
+        self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
         self.max_iterations = max_iterations
         self.color = color
         self.tool_registry = ToolRegistry()
@@ -78,6 +85,27 @@ class BaseAgent:
             },
             func=self._handle_task_complete,
         )
+
+    # ──────────────────────────────────────────
+    # Rate limiting
+    # ──────────────────────────────────────────
+
+    @classmethod
+    def _wait_for_rate_limit(cls):
+        """Sleep if we're about to exceed the API rate limit."""
+        now = time.time()
+        # Remove timestamps older than the window
+        cls._api_call_timestamps = [
+            t for t in cls._api_call_timestamps
+            if now - t < cls._rate_window
+        ]
+        if len(cls._api_call_timestamps) >= cls._rate_limit:
+            oldest = cls._api_call_timestamps[0]
+            wait_time = cls._rate_window - (now - oldest) + 1
+            if wait_time > 0:
+                print(f"\033[93m⏳ Rate limit: waiting {wait_time:.0f}s...\033[0m")
+                time.sleep(wait_time)
+        cls._api_call_timestamps.append(time.time())
 
     # ──────────────────────────────────────────
     # Logging helpers
@@ -122,8 +150,15 @@ class BaseAgent:
         self.log(f"📋 Task received", "bold")
         self.log(f"   {task[:120]}{'...' if len(task) > 120 else ''}", "dim")
 
+        # Build tool-awareness reminder to prevent hallucinated tool names
+        tool_names = self.tool_registry.get_names()
+        tool_reminder = (
+            f"\n\nIMPORTANT: You have ONLY these tools available: {', '.join(tool_names)}. "
+            "Do NOT invent tool names or add prefixes. Use the exact names listed above."
+        )
+
         messages = [
-            {"role": "system", "content": self.system_prompt},
+            {"role": "system", "content": self.system_prompt + tool_reminder},
             {"role": "user", "content": task},
         ]
 
@@ -131,6 +166,9 @@ class BaseAgent:
 
         for iteration in range(1, self.max_iterations + 1):
             self.log(f"🔄 Iteration {iteration}/{self.max_iterations}", "dim")
+
+            # ── RATE LIMIT ──
+            self._wait_for_rate_limit()
 
             # ── THINK ──
             kwargs = {

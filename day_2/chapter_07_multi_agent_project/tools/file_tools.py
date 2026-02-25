@@ -4,10 +4,14 @@ Tools: File Operations
 Tools for reading, writing, listing, and creating files.
 
 These are real tools that the Coder agent uses to create actual code files.
+All paths are automatically resolved to the sandbox directory — the LLM
+just provides filenames like "index.html" and the tools handle the rest.
+
 Built from scratch — no external tool libraries.
 """
 
 import os
+from .sandbox import resolve_path
 
 
 def read_file(file_path: str) -> dict:
@@ -15,13 +19,13 @@ def read_file(file_path: str) -> dict:
     Read the contents of a file.
 
     Args:
-        file_path: Path to the file to read.
+        file_path: Path to the file to read (resolved to sandbox).
 
     Returns:
         Dict with 'path' and 'content', or 'error'.
     """
     try:
-        abs_path = os.path.abspath(file_path)
+        abs_path = resolve_path(file_path)
         if not os.path.isfile(abs_path):
             return {"path": file_path, "error": f"File not found: {abs_path}"}
 
@@ -40,16 +44,17 @@ def read_file(file_path: str) -> dict:
 def write_file(file_path: str, content: str) -> dict:
     """
     Write content to a file. Creates parent directories if needed.
+    Path is automatically resolved to the sandbox.
 
     Args:
-        file_path: Path to the file.
+        file_path: Path to the file (resolved to sandbox).
         content:   The content to write.
 
     Returns:
         Dict with 'path', 'status', and 'size_bytes'.
     """
     try:
-        abs_path = os.path.abspath(file_path)
+        abs_path = resolve_path(file_path)
 
         # Create parent directories if they don't exist
         parent_dir = os.path.dirname(abs_path)
@@ -68,18 +73,19 @@ def write_file(file_path: str, content: str) -> dict:
         return {"path": file_path, "error": str(e)}
 
 
-def list_directory(directory_path: str) -> dict:
+def list_directory(directory_path: str = ".") -> dict:
     """
     List files and directories in a given path.
+    Defaults to the sandbox root if no path given.
 
     Args:
-        directory_path: Path to the directory to list.
+        directory_path: Path to the directory to list (resolved to sandbox).
 
     Returns:
         Dict with 'path' and 'entries' (list of entry dicts).
     """
     try:
-        abs_path = os.path.abspath(directory_path)
+        abs_path = resolve_path(directory_path)
         if not os.path.isdir(abs_path):
             return {"path": directory_path, "error": f"Not a directory: {abs_path}"}
 
@@ -104,13 +110,13 @@ def create_directory(directory_path: str) -> dict:
     Create a directory (and any parent directories).
 
     Args:
-        directory_path: Path to the directory to create.
+        directory_path: Path to the directory (resolved to sandbox).
 
     Returns:
         Dict with 'path' and 'status'.
     """
     try:
-        abs_path = os.path.abspath(directory_path)
+        abs_path = resolve_path(directory_path)
         os.makedirs(abs_path, exist_ok=True)
         return {"path": abs_path, "status": "created"}
     except Exception as e:
@@ -124,11 +130,11 @@ def create_directory(directory_path: str) -> dict:
 FILE_TOOL_SCHEMAS = [
     {
         "name": "read_file",
-        "description": "Read the contents of a file at the given path.",
+        "description": "Read the contents of a file. Just provide the filename (e.g. 'index.html').",
         "parameters": {
             "type": "object",
             "properties": {
-                "file_path": {"type": "string", "description": "Path to the file to read."}
+                "file_path": {"type": "string", "description": "Filename or relative path (e.g. 'index.html' or 'src/app.js')."}
             },
             "required": ["file_path"],
         },
@@ -136,11 +142,11 @@ FILE_TOOL_SCHEMAS = [
     },
     {
         "name": "write_file",
-        "description": "Write content to a file. Creates parent directories automatically.",
+        "description": "Write content to a file. Just provide the filename (e.g. 'index.html'). Parent directories are created automatically.",
         "parameters": {
             "type": "object",
             "properties": {
-                "file_path": {"type": "string", "description": "Path to the file to write."},
+                "file_path": {"type": "string", "description": "Filename or relative path (e.g. 'styles.css' or 'src/utils.js')."},
                 "content":   {"type": "string", "description": "The content to write to the file."},
             },
             "required": ["file_path", "content"],
@@ -149,11 +155,11 @@ FILE_TOOL_SCHEMAS = [
     },
     {
         "name": "list_directory",
-        "description": "List all files and subdirectories in a directory.",
+        "description": "List all files and subdirectories. Use '.' for the project root.",
         "parameters": {
             "type": "object",
             "properties": {
-                "directory_path": {"type": "string", "description": "Path to the directory to list."}
+                "directory_path": {"type": "string", "description": "Directory name or '.' for project root."}
             },
             "required": ["directory_path"],
         },
@@ -161,11 +167,11 @@ FILE_TOOL_SCHEMAS = [
     },
     {
         "name": "create_directory",
-        "description": "Create a directory (including parent directories if needed).",
+        "description": "Create a directory. Just provide the name (e.g. 'src' or 'assets/images').",
         "parameters": {
             "type": "object",
             "properties": {
-                "directory_path": {"type": "string", "description": "Path to the directory to create."}
+                "directory_path": {"type": "string", "description": "Directory name (e.g. 'src' or 'assets/images')."}
             },
             "required": ["directory_path"],
         },
